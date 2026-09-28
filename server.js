@@ -18,11 +18,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const ALLOWED_ORIGINS = [
+  'https://why-insured.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
-  'https://why-insured.vercel.app',
-  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()) : [])
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean) : [])
 ];
 
 // Auto-seed database with Optima Secure+ data if not already seeded
@@ -34,18 +34,20 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, Postman, server-side fetch)
     if (!origin) return callback(null, true);
     
-    // Check if origin matches allowed list or vercel preview/custom domains
-    if (
+    // Check if origin matches allowed list, localhost development, or why-insured preview domains
+    const isAllowed =
       ALLOWED_ORIGINS.includes(origin) ||
-      origin.includes('localhost') ||
-      origin.includes('127.0.0.1') ||
       origin === 'https://why-insured.vercel.app' ||
-      origin.endsWith('.vercel.app')
-    ) {
+      origin === 'http://localhost:5173' ||
+      /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+      /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+      /^https:\/\/why-insured(-[a-z0-9-]+)?\.vercel\.app$/.test(origin);
+
+    if (isAllowed) {
       return callback(null, true);
     }
     
-    return callback(null, true);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
