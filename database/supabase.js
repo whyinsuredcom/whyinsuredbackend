@@ -10,17 +10,29 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl =
+  process.env.SUPABASE_URL ||
+  process.env.SUPABASE_PROJECT_URL;
+
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_KEY ||
+  process.env.SUPABASE_SECRET_KEY;
 
 export const supabase = (supabaseUrl && supabaseKey)
   ? createClient(supabaseUrl, supabaseKey)
   : new Proxy({}, {
       get(target, prop) {
-        const url = process.env.SUPABASE_URL || process.env.SUPABASE_PROJECT_URL;
-        const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const url =
+          process.env.SUPABASE_URL ||
+          process.env.SUPABASE_PROJECT_URL;
+        const key =
+          process.env.SUPABASE_SERVICE_ROLE_KEY ||
+          process.env.SUPABASE_SERVICE_KEY ||
+          process.env.SUPABASE_SECRET_KEY;
+
         if (!url || !key) {
-          throw new Error('Supabase credentials missing: Please define SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend/.env');
+          throw new Error('Supabase credentials missing: Please define SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in environment variables');
         }
         const client = createClient(url, key);
         const val = client[prop];

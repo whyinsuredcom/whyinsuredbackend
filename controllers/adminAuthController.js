@@ -77,12 +77,21 @@ export const login = async (req, res) => {
       });
     }
 
-    // 1. Query admin from database
-    const admins = await db.admins.getAll();
-    const adminUser = admins.find(a => 
-      String(a.email || '').trim().toLowerCase() === inputIdentifier ||
-      String(a.username || '').trim().toLowerCase() === inputIdentifier
-    );
+    // 1. Query admin from database with safe error handling
+    let adminUser = null;
+    let dbLookupError = null;
+    try {
+      const admins = await db.admins.getAll();
+      if (Array.isArray(admins)) {
+        adminUser = admins.find(a =>
+          String(a.email || '').trim().toLowerCase() === inputIdentifier ||
+          String(a.username || '').trim().toLowerCase() === inputIdentifier
+        );
+      }
+    } catch (dbErr) {
+      dbLookupError = dbErr;
+      console.warn('[AdminAuth] Database admin lookup unavailable:', dbErr.message);
+    }
 
     // 2. Validate password
     let isValid = false;
@@ -95,20 +104,29 @@ export const login = async (req, res) => {
       }
       authenticatedUser = adminUser;
     } else {
-      // Fallback check against environment variables if database admin record is missing
-      const envUser = (process.env.ADMIN_USERNAME || 'admin').toLowerCase();
-      const envEmail = (process.env.ADMIN_EMAIL || 'admin@whyinsured.com').toLowerCase();
-      const envPass = process.env.ADMIN_PASSWORD || 'Admin@WhyInsured2026!';
+      // Fallback check against environment variables ONLY if environment variables are explicitly configured
+      const envPass = process.env.ADMIN_PASSWORD;
+      const envUser = (process.env.ADMIN_USERNAME || '').toLowerCase();
+      const envEmail = (process.env.ADMIN_EMAIL || '').toLowerCase();
 
-      if ((inputIdentifier === envUser || inputIdentifier === envEmail) && inputPassword === envPass) {
-        isValid = true;
-        authenticatedUser = {
-          id: 'admin-env-fallback',
-          email: envEmail,
-          username: envUser,
-          name: 'Administrator',
-          role: 'admin'
-        };
+      if (envPass && (envUser || envEmail)) {
+        const isUserMatch = (envUser && inputIdentifier === envUser) || (envEmail && inputIdentifier === envEmail);
+        if (isUserMatch && inputPassword === envPass) {
+          isValid = true;
+          authenticatedUser = {
+            id: 'admin-env-fallback',
+            email: envEmail || `${envUser}@whyinsured.com`,
+            username: envUser || 'admin',
+            name: 'Administrator',
+            role: 'admin'
+          };
+        }
+      } else if (dbLookupError) {
+        // Database is offline/unreachable and no fallback environment credentials are configured
+        return res.status(503).json({
+          success: false,
+          error: 'Authentication service temporarily unavailable: Database is unreachable and ADMIN_PASSWORD is not configured in environment variables.'
+        });
       }
     }
 
