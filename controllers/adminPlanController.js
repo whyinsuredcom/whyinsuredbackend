@@ -149,8 +149,8 @@ export const createPlan = async (req, res) => {
       description: description ? description.trim() : '',
       logo: logo || company.logo || '',
       coverage: coverage || '₹5 Lakh - ₹1 Crore',
-      theme_primary: primary_color || company.primary_color || '#0038A8',
-      theme_secondary: secondary_color || company.secondary_color || '#F0F4FF',
+      theme_primary: company.primary_color || primary_color || '#0038A8',
+      theme_secondary: company.secondary_color || secondary_color || '#F0F4FF',
       status: (status || (is_published ? 'active' : 'draft'))
     });
 

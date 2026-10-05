@@ -7,8 +7,9 @@ async function formatPlanForPublic(planData) {
   if (!planData) return null;
 
   const company = planData.company || (planData.company_id ? await db.companies.findById(planData.company_id) : null) || {};
-  const primaryColor = planData.primary_color || company.primary_color || '#0038A8';
-  const secondaryColor = planData.secondary_color || company.secondary_color || '#F0F4FF';
+  // Company branding is the authoritative source for theme & colors
+  const primaryColor = company.primary_color || planData.theme_primary || planData.primary_color || '#0038A8';
+  const secondaryColor = company.secondary_color || planData.theme_secondary || planData.secondary_color || '#F0F4FF';
 
   // 1. Group Policy Benefits into standard categories
   const benefits = planData.policyBenefits || [];
