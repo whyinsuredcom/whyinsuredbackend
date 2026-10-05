@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import optimaSecurePlusRoutes from './routes/optimaSecurePlusRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
@@ -21,6 +22,7 @@ const PORT = process.env.PORT || 5000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const ALLOWED_ORIGINS = [
   'https://why-insured.vercel.app',
+  'https://whyinsuredbackend.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
@@ -33,14 +35,16 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, Postman, server-side fetch)
     if (!origin) return callback(null, true);
     
-    // Check if origin matches allowed list, localhost development, or why-insured preview domains
+    // Check if origin matches allowed list, localhost development, or why-insured/backend preview domains
     const isAllowed =
       ALLOWED_ORIGINS.includes(origin) ||
       origin === 'https://why-insured.vercel.app' ||
+      origin === 'https://whyinsuredbackend.vercel.app' ||
       origin === 'http://localhost:5173' ||
       /^http:\/\/localhost(:\d+)?$/.test(origin) ||
       /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
-      /^https:\/\/why-insured(-[a-z0-9-]+)?\.vercel\.app$/.test(origin);
+      /^https:\/\/why-insured(-[a-z0-9-]+)?\.vercel\.app$/.test(origin) ||
+      /^https:\/\/whyinsuredbackend(-[a-z0-9-]+)?\.vercel\.app$/.test(origin);
 
     if (isAllowed) {
       return callback(null, true);
@@ -82,6 +86,20 @@ app.use('/api/ai', aiChatRoutes);
 
 // Mount Policy Upload & Analysis APIs
 app.use('/api/policy', policyRoutes);
+
+// Serve Admin Panel Static Assets & SPA Routing
+const publicDir = path.join(__dirname, 'public');
+const adminIndexPath = path.join(publicDir, 'index.html');
+app.use(express.static(publicDir, { index: false }));
+app.use('/admin', express.static(publicDir, { index: false }));
+
+// Admin Panel SPA fallback (ONLY for /admin and /admin/* routes)
+app.get(/^\/admin(\/.*)?$/, (req, res, next) => {
+  if (fs.existsSync(adminIndexPath)) {
+    return res.sendFile(adminIndexPath);
+  }
+  next();
+});
 
 // 404 Handler
 app.use((req, res) => {

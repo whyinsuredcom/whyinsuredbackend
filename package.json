@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "build": "node scripts/verify_build.js",
     "seed": "node database/seed.js"
   },
   "dependencies": {
