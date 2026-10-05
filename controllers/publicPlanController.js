@@ -355,7 +355,14 @@ export const getPublicPlanDetail = async (req, res) => {
     const { companySlug, planSlug } = req.params;
     const planIdentifier = planSlug || companySlug; // Supports /plans/:planSlug or /plans/:companySlug/:planSlug
 
-    const rawPlan = await db.getPlanWithAllSections(planIdentifier, false);
+    let rawPlan = await db.getPlanWithAllSections(planIdentifier, false);
+
+    if (!rawPlan && companySlug) {
+      const companyPrefix = String(companySlug).split('-')[0].toLowerCase();
+      if (!planIdentifier.toLowerCase().startsWith(companyPrefix)) {
+        rawPlan = await db.getPlanWithAllSections(`${companyPrefix}-${planIdentifier}`, false);
+      }
+    }
 
     if (!rawPlan) {
       return res.status(404).json({
