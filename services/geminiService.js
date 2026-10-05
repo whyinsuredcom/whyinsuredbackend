@@ -180,6 +180,10 @@ export async function analyzeRequirementWithGemini(userMessage, conversationHist
     lowerMsg === 'show recommendations' || lowerMsg === 'show options' ||
     lowerMsg.includes('show the plan') || lowerMsg.includes('show matching plan') ||
     lowerMsg.includes('show me plans') || lowerMsg.includes('show plans') ||
+    lowerMsg.includes('plan dikhao') || lowerMsg.includes('plans dikhao') ||
+    lowerMsg.includes('plan dikha do') || lowerMsg.includes('plans dikha do') ||
+    lowerMsg.includes('plan dikha de') || lowerMsg.includes('plans dikha de') ||
+    lowerMsg.includes('policy dikhao') ||
     lowerMsg.includes('suggest another') || lowerMsg.includes('suggest a good plan') ||
     lowerMsg.includes('suggest plan') || lowerMsg.includes('suggest a plan') ||
     lowerMsg.includes('suggest me a plan') || lowerMsg.includes('recommend a plan') ||
@@ -194,7 +198,7 @@ export async function analyzeRequirementWithGemini(userMessage, conversationHist
     (excludeCompanies.length > 0 && (lowerMsg.includes('suggest') || lowerMsg.includes('show') || lowerMsg.includes('option') || lowerMsg.includes('plan') || lowerMsg.includes('another') || lowerMsg.includes('aur') || lowerMsg.includes('else')))
   );
 
-  if (isExplicitShowPlans || finalResult.showPlans || (finalResult.intent && finalResult.intent.toUpperCase() === 'SHOW_RECOMMENDATIONS')) {
+  if (isExplicitShowPlans) {
     finalResult.showPlans = true;
     finalResult.intent = 'SHOW_RECOMMENDATIONS';
     finalResult.conversationStage = 'showing_recommendations';
@@ -212,6 +216,8 @@ export async function analyzeRequirementWithGemini(userMessage, conversationHist
         finalResult.reply = "Here are the top plans that best match your requirements:";
       }
     }
+  } else {
+    finalResult.showPlans = false;
   }
 
   // Handle "best company" / general comparison query: do not force previous insurer
@@ -422,6 +428,28 @@ function fallbackSemanticAdvisor(userMessage, conversationHistory = [], accumula
     .reverse()
     .find(m => m.sender === 'ai' || m.sender === 'assistant' || m.role === 'assistant' || m.role === 'ai')?.text || '';
   const lastAdvisorLower = lastAdvisorMsg.toLowerCase();
+
+  // 0. Non-health insurance check (motor, car, bike, two wheeler, vehicle, life, term, travel, home)
+  const isNonHealthInsurance = (
+    lowerCurrent.includes('motor') || lowerCurrent.includes('moto ') || lowerCurrent === 'moto' ||
+    lowerCurrent.includes('car insurance') || lowerCurrent.includes('car plan') ||
+    lowerCurrent.includes('bike insurance') || lowerCurrent.includes('bike plan') ||
+    lowerCurrent.includes('vehicle insurance') || lowerCurrent.includes('two wheeler') ||
+    lowerCurrent.includes('auto insurance') || lowerCurrent.includes('life insurance') ||
+    lowerCurrent.includes('term insurance') || lowerCurrent.includes('travel insurance') ||
+    lowerCurrent.includes('home insurance') || lowerCurrent.includes('motor plan')
+  );
+
+  if (isNonHealthInsurance) {
+    return {
+      intent: 'OUT_OF_SCOPE_DOMAIN',
+      conversationStage: 'general_information',
+      showPlans: false,
+      requirements: accumulatedReqs,
+      reply: "WHYINSURED currently focuses on health insurance. We specialize in comprehensive health plans, hospital benefits, cashless claims, and policy comparison. If you're looking for health insurance for yourself or your family, I'd be happy to guide you!",
+      suggestions: []
+    };
+  }
 
   // 1. Follow-up "example" / "explain" requests (e.g. "Give me short explanation with example")
   const isExampleOrExplanationRequest = (

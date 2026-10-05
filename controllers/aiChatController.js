@@ -41,7 +41,12 @@ export async function handleAiChat(req, res) {
       lowerMsg.includes('suggest plan') ||
       lowerMsg.includes('best plan for') ||
       lowerMsg.includes('top plan') ||
+      lowerMsg.includes('plan dikhao') ||
       lowerMsg.includes('plans dikhao') ||
+      lowerMsg.includes('plan dikha do') ||
+      lowerMsg.includes('plans dikha do') ||
+      lowerMsg.includes('plan dikha de') ||
+      lowerMsg.includes('plans dikha de') ||
       lowerMsg.includes('policy dikhao');
 
     if (!isExplicitShowPlans) {
@@ -73,8 +78,7 @@ export async function handleAiChat(req, res) {
     let recommendations = [];
 
     // Only match and attach policy recommendation cards when user explicitly requests to see plans
-    const intentUpper = (aiAnalysis.intent || '').toUpperCase();
-    if (aiAnalysis.showPlans || intentUpper === 'SHOW_RECOMMENDATIONS' || intentUpper === 'RECOMMENDATION_REQUEST') {
+    if (aiAnalysis.showPlans) {
       recommendations = matchPolicies(aiAnalysis.requirements || {}, 4, aiAnalysis.excludeCompanies || []);
     }
 

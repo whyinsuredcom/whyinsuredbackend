@@ -212,12 +212,13 @@ function formatMustKnow(items) {
 }
 
 // =============================================================================
+// =============================================================================
 // MAIN PUBLIC PLAN DATA AGGREGATOR
 // =============================================================================
-export const getPlanData = (req, res) => {
+export const getPlanData = async (req, res) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
-    const plan = db.plans.findById('hdfc-optima-secure-plus') || {
+    const plan = (await db.plans.findById('hdfc-optima-secure-plus')) || {
       id: 'hdfc-optima-secure-plus',
       company_name: 'HDFC ERGO',
       plan_name: 'Optima Secure+',
@@ -229,23 +230,23 @@ export const getPlanData = (req, res) => {
       status: 'active'
     };
 
-    const allFeatures = db.planFeatures.findByPlanId('hdfc-optima-secure-plus', {
+    const allFeatures = await db.planFeatures.findByPlanId('hdfc-optima-secure-plus', {
       includeInactive
     });
 
-    const reportCardItems = db.reportCard.findByPlanId('hdfc-optima-secure-plus', {
+    const reportCardItems = await db.reportCard.findByPlanId('hdfc-optima-secure-plus', {
       includeInactive
     });
 
-    const companyStrengthItems = db.companyStrength.findByPlanId('hdfc-optima-secure-plus', {
+    const companyStrengthItems = await db.companyStrength.findByPlanId('hdfc-optima-secure-plus', {
       includeInactive
     });
 
-    const limitationsItems = db.limitations.findByPlanId('hdfc-optima-secure-plus', {
+    const limitationsItems = await db.limitations.findByPlanId('hdfc-optima-secure-plus', {
       includeInactive
     });
 
-    const mustKnowItems = db.mustKnow.findByPlanId('hdfc-optima-secure-plus', {
+    const mustKnowItems = await db.mustKnow.findByPlanId('hdfc-optima-secure-plus', {
       includeInactive
     });
 
@@ -288,10 +289,10 @@ export const getPlanData = (req, res) => {
       success: true,
       data: {
         planId: plan.id,
-        planName: plan.plan_name,
-        companyName: plan.company_name,
-        policySubtitle: plan.policy_subtitle,
-        tagline: plan.tagline,
+        planName: plan.plan_name || plan.name,
+        companyName: plan.company_name || 'HDFC ERGO',
+        policySubtitle: plan.policy_subtitle || plan.subtitle,
+        tagline: plan.tagline || plan.subtitle,
         description: plan.description,
         logo: plan.logo,
         coverage: plan.coverage,
@@ -313,20 +314,27 @@ export const getPlanData = (req, res) => {
   }
 };
 
-export const updatePlanInfo = (req, res) => {
+export const updatePlanInfo = async (req, res) => {
   try {
     const { plan_name, company_name, policy_subtitle, tagline, description, logo, coverage, status } = req.body;
-    const updated = db.plans.upsert({
+    const existing = await db.plans.findById('hdfc-optima-secure-plus');
+    const payload = {
       id: 'hdfc-optima-secure-plus',
-      plan_name,
-      company_name,
-      policy_subtitle,
-      tagline,
+      name: plan_name || (existing ? existing.name : 'Optima Secure+'),
+      subtitle: policy_subtitle || tagline,
+      tagline: tagline || policy_subtitle,
       description,
       logo,
       coverage,
-      status
-    });
+      status: status || 'active'
+    };
+
+    let updated = null;
+    if (existing) {
+      updated = await db.plans.update('hdfc-optima-secure-plus', payload);
+    } else {
+      updated = await db.plans.create(payload);
+    }
 
     return res.json({
       success: true,
@@ -345,10 +353,10 @@ export const updatePlanInfo = (req, res) => {
 // =============================================================================
 // FEATURES CRUD
 // =============================================================================
-export const getFeatures = (req, res) => {
+export const getFeatures = async (req, res) => {
   try {
     const { section, includeInactive } = req.query;
-    const features = db.planFeatures.findByPlanId('hdfc-optima-secure-plus', {
+    const features = await db.planFeatures.findByPlanId('hdfc-optima-secure-plus', {
       section,
       includeInactive: includeInactive === 'true'
     });
@@ -358,9 +366,9 @@ export const getFeatures = (req, res) => {
   }
 };
 
-export const getFeatureById = (req, res) => {
+export const getFeatureById = async (req, res) => {
   try {
-    const feature = db.planFeatures.findById(req.params.id);
+    const feature = await db.planFeatures.findById(req.params.id);
     if (!feature) return res.status(404).json({ success: false, error: 'Feature not found' });
     return res.json({ success: true, data: feature });
   } catch (error) {
@@ -368,14 +376,14 @@ export const getFeatureById = (req, res) => {
   }
 };
 
-export const createFeature = (req, res) => {
+export const createFeature = async (req, res) => {
   try {
     const { section, title, subtitle, summary, detailed_description, intro, points, steps, badge, icon_type, video_title, video_url, display_order, status } = req.body;
     if (!title || !String(title).trim()) {
       return res.status(400).json({ success: false, error: 'Feature title is required' });
     }
 
-    const newFeature = db.planFeatures.create({
+    const newFeature = await db.planFeatures.create({
       plan_id: 'hdfc-optima-secure-plus',
       section: section || 'most_important',
       title: String(title).trim(),
@@ -400,13 +408,13 @@ export const createFeature = (req, res) => {
   }
 };
 
-export const updateFeature = (req, res) => {
+export const updateFeature = async (req, res) => {
   try {
     const { id } = req.params;
-    const existing = db.planFeatures.findById(id);
+    const existing = await db.planFeatures.findById(id);
     if (!existing) return res.status(404).json({ success: false, error: 'Feature not found' });
 
-    const updated = db.planFeatures.update(id, req.body);
+    const updated = await db.planFeatures.update(id, req.body);
     return res.json({ success: true, message: 'Feature updated successfully', data: updated });
   } catch (error) {
     console.error('Error updating feature:', error);
@@ -414,10 +422,10 @@ export const updateFeature = (req, res) => {
   }
 };
 
-export const deleteFeature = (req, res) => {
+export const deleteFeature = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = db.planFeatures.delete(id);
+    const deleted = await db.planFeatures.delete(id);
     if (!deleted) return res.status(404).json({ success: false, error: 'Feature not found' });
     return res.json({ success: true, message: 'Feature deleted successfully' });
   } catch (error) {
@@ -426,10 +434,10 @@ export const deleteFeature = (req, res) => {
   }
 };
 
-export const toggleFeatureStatus = (req, res) => {
+export const toggleFeatureStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = db.planFeatures.toggleStatus(id);
+    const updated = await db.planFeatures.toggleStatus(id);
     if (!updated) return res.status(404).json({ success: false, error: 'Feature not found' });
     return res.json({ success: true, message: `Feature status updated to ${updated.status}`, data: updated });
   } catch (error) {
@@ -438,11 +446,11 @@ export const toggleFeatureStatus = (req, res) => {
   }
 };
 
-export const reorderFeatures = (req, res) => {
+export const reorderFeatures = async (req, res) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items)) return res.status(400).json({ success: false, error: 'Items array is required' });
-    db.planFeatures.reorder(items);
+    await db.planFeatures.reorder(items);
     return res.json({ success: true, message: 'Features reordered successfully' });
   } catch (error) {
     return res.status(500).json({ success: false, error: 'Failed to reorder features' });
@@ -455,30 +463,30 @@ export const reorderFeatures = (req, res) => {
 function createSectionHandlers(collectionName, entityLabel) {
   const handler = db[collectionName];
   return {
-    getAll: (req, res) => {
+    getAll: async (req, res) => {
       try {
         const includeInactive = req.query.includeInactive === 'true';
-        const items = handler.findByPlanId('hdfc-optima-secure-plus', { includeInactive });
+        const items = await handler.findByPlanId('hdfc-optima-secure-plus', { includeInactive });
         return res.json({ success: true, count: items.length, data: items });
       } catch (error) {
         return res.status(500).json({ success: false, error: `Failed to fetch ${entityLabel} items` });
       }
     },
-    getById: (req, res) => {
+    getById: async (req, res) => {
       try {
-        const item = handler.findById(req.params.id);
+        const item = await handler.findById(req.params.id);
         if (!item) return res.status(404).json({ success: false, error: `${entityLabel} item not found` });
         return res.json({ success: true, data: item });
       } catch (error) {
         return res.status(500).json({ success: false, error: `Failed to fetch ${entityLabel} item` });
       }
     },
-    create: (req, res) => {
+    create: async (req, res) => {
       try {
         if (!req.body.title || !String(req.body.title).trim()) {
           return res.status(400).json({ success: false, error: 'Title is required' });
         }
-        const created = handler.create({
+        const created = await handler.create({
           plan_id: 'hdfc-optima-secure-plus',
           ...req.body,
           title: String(req.body.title).trim()
@@ -489,9 +497,9 @@ function createSectionHandlers(collectionName, entityLabel) {
         return res.status(500).json({ success: false, error: error.message || `Failed to create ${entityLabel}` });
       }
     },
-    update: (req, res) => {
+    update: async (req, res) => {
       try {
-        const updated = handler.update(req.params.id, req.body);
+        const updated = await handler.update(req.params.id, req.body);
         if (!updated) return res.status(404).json({ success: false, error: `${entityLabel} not found` });
         return res.json({ success: true, message: `${entityLabel} updated successfully`, data: updated });
       } catch (error) {
@@ -499,9 +507,9 @@ function createSectionHandlers(collectionName, entityLabel) {
         return res.status(500).json({ success: false, error: error.message || `Failed to update ${entityLabel}` });
       }
     },
-    delete: (req, res) => {
+    delete: async (req, res) => {
       try {
-        const deleted = handler.delete(req.params.id);
+        const deleted = await handler.delete(req.params.id);
         if (!deleted) return res.status(404).json({ success: false, error: `${entityLabel} not found` });
         return res.json({ success: true, message: `${entityLabel} deleted successfully` });
       } catch (error) {
@@ -509,9 +517,9 @@ function createSectionHandlers(collectionName, entityLabel) {
         return res.status(500).json({ success: false, error: error.message || `Failed to delete ${entityLabel}` });
       }
     },
-    toggleStatus: (req, res) => {
+    toggleStatus: async (req, res) => {
       try {
-        const updated = handler.toggleStatus(req.params.id);
+        const updated = await handler.toggleStatus(req.params.id);
         if (!updated) return res.status(404).json({ success: false, error: `${entityLabel} not found` });
         return res.json({ success: true, message: `${entityLabel} status updated to ${updated.status}`, data: updated });
       } catch (error) {
@@ -519,11 +527,11 @@ function createSectionHandlers(collectionName, entityLabel) {
         return res.status(500).json({ success: false, error: error.message || `Failed to toggle ${entityLabel} status` });
       }
     },
-    reorder: (req, res) => {
+    reorder: async (req, res) => {
       try {
         const { items } = req.body;
         if (!Array.isArray(items)) return res.status(400).json({ success: false, error: 'Items array is required' });
-        handler.reorder(items);
+        await handler.reorder(items);
         return res.json({ success: true, message: `${entityLabel} reordered successfully` });
       } catch (error) {
         return res.status(500).json({ success: false, error: `Failed to reorder ${entityLabel}` });

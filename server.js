@@ -4,10 +4,12 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import optimaSecurePlusRoutes from './routes/optimaSecurePlusRoutes.js';
-import adminAuthRoutes from './routes/adminAuthRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import publicRoutes from './routes/publicRoutes.js';
 import aiChatRoutes from './routes/aiChatRoutes.js';
 import policyRoutes from './routes/policyRoutes.js';
 import { seedDatabase } from './database/seed.js';
+import { testSupabaseConnection } from './database/supabase.js';
 
 dotenv.config();
 
@@ -24,9 +26,6 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5173',
   ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean) : [])
 ];
-
-// Auto-seed database with Optima Secure+ data if not already seeded
-seedDatabase();
 
 // Middleware
 app.use(cors({
@@ -50,7 +49,7 @@ app.use(cors({
     return callback(new Error(`Origin ${origin} not allowed by CORS`));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token']
 }));
 
@@ -69,10 +68,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Mount Admin Auth APIs
-app.use('/api/admin', adminAuthRoutes);
+// Mount Admin CMS & Management APIs
+app.use('/api/admin', adminRoutes);
 
-// Mount Optima Secure+ APIs
+// Mount Public Content APIs
+app.use('/api/public', publicRoutes);
+
+// Mount Optima Secure+ APIs (Backward compatibility)
 app.use('/api/optima-secure-plus', optimaSecurePlusRoutes);
 
 // Mount AI Chat Assistant APIs
@@ -98,15 +100,28 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server (only when not in Vercel Serverless environment)
-if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`====================================================`);
-    console.log(`🚀 WHYINSURED API Server running on port ${PORT}`);
-    console.log(`🔗 API Base: http://localhost:${PORT}/api/optima-secure-plus`);
-    console.log(`🔒 Admin Auth Header: x-admin-token: ${process.env.ADMIN_SECRET_KEY || 'whyinsured-admin-secret-2026'}`);
-    console.log(`====================================================`);
-  });
+// Start server with safe asynchronous database initialization & seeding
+async function startServer() {
+  try {
+    await testSupabaseConnection();
+    console.log('✅ Supabase connected successfully');
+    await seedDatabase();
+  } catch (error) {
+    console.error('❌ Server startup database initialization failed:', error.message);
+  }
+
+  // Start server (only when not in Vercel Serverless environment)
+  if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+      console.log(`====================================================`);
+      console.log(`🚀 WHYINSURED API Server running on port ${PORT}`);
+      console.log(`🔗 API Base: http://localhost:${PORT}/api/optima-secure-plus`);
+      console.log(`🔒 Admin Auth Header: x-admin-token: ${process.env.ADMIN_SECRET_KEY || 'whyinsured-admin-secret-2026'}`);
+      console.log(`====================================================`);
+    });
+  }
 }
+
+startServer();
 
 export default app;
