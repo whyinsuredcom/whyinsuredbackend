@@ -21,6 +21,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 const ALLOWED_ORIGINS = [
+  'https://whyinsured.com',
+  'https://www.whyinsured.com',
   'https://why-insured.vercel.app',
   'https://whyinsuredbackend.vercel.app',
   'http://localhost:5173',
@@ -38,6 +40,8 @@ app.use(cors({
     // Check if origin matches allowed list, localhost development, or why-insured/backend preview domains
     const isAllowed =
       ALLOWED_ORIGINS.includes(origin) ||
+      origin === 'https://whyinsured.com' ||
+      origin === 'https://www.whyinsured.com' ||
       origin === 'https://why-insured.vercel.app' ||
       origin === 'https://whyinsuredbackend.vercel.app' ||
       origin === 'http://localhost:5173' ||

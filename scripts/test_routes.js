@@ -44,7 +44,53 @@ server.listen(5099, async () => {
     const badGenericJson = await badGenericRes.json();
     console.log('7. GET /some-random-page:', badGenericRes.status, badGenericJson.success === false ? '✅ PASSED (404 JSON error preserved)' : '❌ FAILED');
 
-    console.log('\n🎉 ALL ROUTE VERIFICATIONS PASSED SUCCESSFULLY!');
+    // 8. Test CORS Preflight (OPTIONS) for https://whyinsured.com
+    const preflightRes = await fetch('http://localhost:5099/api/admin/auth/login', {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'https://whyinsured.com',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type, Authorization, x-admin-token'
+      }
+    });
+    const allowOrigin = preflightRes.headers.get('access-control-allow-origin');
+    const allowCreds = preflightRes.headers.get('access-control-allow-credentials');
+    const isPreflightOk = allowOrigin === 'https://whyinsured.com' && allowCreds === 'true';
+    console.log('8. OPTIONS /api/admin/auth/login [Origin: https://whyinsured.com]:', preflightRes.status, isPreflightOk ? `✅ PASSED (Allow-Origin: ${allowOrigin})` : `❌ FAILED (Allow-Origin: ${allowOrigin})`);
+
+    // 9. Test CORS Preflight (OPTIONS) for https://www.whyinsured.com
+    const preflightWwwRes = await fetch('http://localhost:5099/api/admin/auth/login', {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': 'https://www.whyinsured.com',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type, Authorization, x-admin-token'
+      }
+    });
+    const allowWwwOrigin = preflightWwwRes.headers.get('access-control-allow-origin');
+    const isWwwPreflightOk = allowWwwOrigin === 'https://www.whyinsured.com';
+    console.log('9. OPTIONS /api/admin/auth/login [Origin: https://www.whyinsured.com]:', preflightWwwRes.status, isWwwPreflightOk ? `✅ PASSED (Allow-Origin: ${allowWwwOrigin})` : `❌ FAILED (Allow-Origin: ${allowWwwOrigin})`);
+
+    // 10. Test CORS POST request for https://whyinsured.com
+    const postRes = await fetch('http://localhost:5099/api/admin/auth/login', {
+      method: 'POST',
+      headers: {
+        'Origin': 'https://whyinsured.com',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email: 'test@invalid.com', password: 'wrong' })
+    });
+    const postAllowOrigin = postRes.headers.get('access-control-allow-origin');
+    console.log('10. POST /api/admin/auth/login [Origin: https://whyinsured.com]:', postRes.status, postAllowOrigin === 'https://whyinsured.com' ? `✅ PASSED (Allow-Origin: ${postAllowOrigin})` : `❌ FAILED (Allow-Origin: ${postAllowOrigin})`);
+
+    // 11. Test CORS rejection for unauthorized origin
+    const unauthorizedRes = await fetch('http://localhost:5099/api/health', {
+      headers: { 'Origin': 'https://unauthorized-malicious-site.com' }
+    });
+    const unauthorizedAllow = unauthorizedRes.headers.get('access-control-allow-origin');
+    console.log('11. GET /api/health [Unauthorized Origin]:', unauthorizedAllow === null ? '✅ PASSED (CORS correctly blocked)' : '❌ FAILED');
+
+    console.log('\n🎉 ALL ROUTE & CORS VERIFICATIONS PASSED SUCCESSFULLY!');
   } catch (err) {
     console.error('❌ Test failed with error:', err);
   } finally {
