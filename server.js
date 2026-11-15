@@ -9,6 +9,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import aiChatRoutes from './routes/aiChatRoutes.js';
 import policyRoutes from './routes/policyRoutes.js';
+import publicAcademyRoutes from './routes/publicAcademyRoutes.js';
+import adminAcademyRoutes from './routes/adminAcademyRoutes.js';
 import { seedDatabase } from './database/seed.js';
 import { testSupabaseConnection } from './database/supabase.js';
 
@@ -48,7 +50,9 @@ app.use(cors({
       /^http:\/\/localhost(:\d+)?$/.test(origin) ||
       /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
       /^https:\/\/why-insured(-[a-z0-9-]+)?\.vercel\.app$/.test(origin) ||
-      /^https:\/\/whyinsuredbackend(-[a-z0-9-]+)?\.vercel\.app$/.test(origin);
+      /^https:\/\/whyinsuredbackend(-[a-z0-9-]+)?\.vercel\.app$/.test(origin) ||
+      /^https:\/\/([a-z0-9-]+--)?whyinsured\.netlify\.app$/.test(origin) ||
+      /^https:\/\/[a-z0-9-]+\.netlify\.app$/.test(origin);
 
     if (isAllowed) {
       return callback(null, true);
@@ -78,9 +82,11 @@ app.get('/api/health', (req, res) => {
 
 // Mount Admin CMS & Management APIs
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/academy', adminAcademyRoutes);
 
 // Mount Public Content APIs
 app.use('/api/public', publicRoutes);
+app.use('/api/public/academy', publicAcademyRoutes);
 
 // Mount Optima Secure+ APIs (Backward compatibility)
 app.use('/api/optima-secure-plus', optimaSecurePlusRoutes);
